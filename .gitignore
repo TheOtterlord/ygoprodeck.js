@@ -77,3 +77,6 @@ typings/
 
 # library build output
 lib/
+
+# docs output
+public/

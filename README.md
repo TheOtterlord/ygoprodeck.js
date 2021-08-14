@@ -1,9 +1,15 @@
-# typescript-lib
+# YGOPRODeck.js
 
-A TypeScript library template.
+A TypeScript/JavaScript library for the [YGOPRODeck API](https://db.ygoprodeck.com/api-guide).
 
-## Tests
+## Install
 
 ```bash
-npm run test
+npm i ygoprodeck.js
+# or
+yarn add ygoprodeck.js
 ```
+
+## Documentation
+
+See https://theotterlord.github.io/ygoprodeck.js for documentation.
