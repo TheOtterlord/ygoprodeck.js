@@ -1,0 +1,7 @@
+.github/
+public/
+src/
+examples/
+.*
+*.md
+tsconfig.json

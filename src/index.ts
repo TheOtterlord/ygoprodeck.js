@@ -1,74 +1,86 @@
-import axios from "axios"
-import { ApiOptions, CardFilters } from './types'
+import axios from 'axios'
+import Fuse from 'fuse.js'
+import { Card, CardType, CardRace, Attribute, Response, LinkMarker } from './types'
 
-export default class YGOApi {
-  cardUrl       = 'https://db.ygoprodeck.com/api/v7/cardinfo.php'
-  archetypesUrl = 'https://db.ygoprodeck.com/api/v7/archetypes.php'
-  setUrl        = 'https://db.ygoprodeck.com/api/v7/cardsets.php'
-  setInfoUrl    = 'https://db.ygoprodeck.com/api/v7/cardsetsinfo.php'
-  randomCardUrl = 'https://db.ygoprodeck.com/api/v7/randomcard.php'
-
-  constructor(options?: ApiOptions) {
-    for (const key in options) if (options[key]) this[key] = options[key]
-  }
+export default class YGOClient {
+  cards?: Card[]
+  fuse?: Fuse<Card>
 
   /**
-   * Get all cards that match the given filters
-  */
-  async getCards(filters?: CardFilters) {
-    const res = await axios.get(this.cardUrl, {
-      params: {
-        ...filters,
-      }
+   * Load the cards from the YGOProDeck API.
+   * Can be overridden by passing `cards`.
+   */
+  async load(cards?: Card[]) {
+    if (cards) this.cards = cards
+    else {
+      const response = await axios.get('https://db.ygoprodeck.com/api/v7/cardinfo.php')
+      this.cards = (response.data as Response).data
+    }
+    this.fuse = new Fuse(this.cards, {
+      keys: [{
+        name: 'name',
+        weight: 0.7,
+      }, {
+        name: 'desc',
+        weight: 0.3,
+      }]
     })
-
-    return res.data.data
   }
 
-  /**
-   * Get the first card that matches the given filters
-  */
-  async getCard(filters?: CardFilters) {
-    return await this.getCards(filters)[0]
+  /** Get a list of cards that match the value to the property */
+  getByProperty(property: keyof Card, value: any) {
+    if (!this.cards) throw new Error('No cards loaded. Call .load() to fetch them')
+    return this.cards.filter(card => card[property] === value)
   }
 
-  /**
-   * Get a random card
+  /** Get the card with the exact `id` */
+  getById(id: string): Card | undefined { return this.getByProperty('id', id)[0] }
+  /** Get the card with the exact `name` */
+  getByName(name: string): Card | undefined { return this.getByProperty('name', name)[0] }
+  /** Get a list of cards with the same `type` */
+  getByType(type: CardType) { return this.getByProperty('type', type) }
+  /** Get a list of cards with the same `atk` */
+  getByAtk(atk: number) { return this.getByProperty('atk', atk) }
+  /** Get a list of cards with the same `def` */
+  getByDef(def: number) { return this.getByProperty('def', def) }
+  /** Get a list of cards with the same `level` */
+  getByLevel(level: number) { return this.getByProperty('level', level) }
+  /** Get a list of cards with the same `race` */
+  getByRace(race: CardRace) { return this.getByProperty('race', race) }
+  /** Get a list of cards with the same `attribute` */
+  getByAttribute(attribute: Attribute) { return this.getByProperty('attribute', attribute) }
+  /** Get a list of cards with the same `archetype` */
+  getByArchetype(archetype: string) { return this.getByProperty('archetype', archetype) }
+  /** Get a list of cards with the same `scale` */
+  getByScale(scale: number) { return this.getByProperty('scale', scale) }
+  /** Get a list of cards with the same `linkval` */
+  getByLinkval(linkval: number) { return this.getByProperty('linkval', linkval) }
+
+  /** Get a list of cards with the same `set_code` */
+  getBySet(set_code: string) {
+    if (!this.cards) throw new Error('No cards loaded. Call .load() to fetch them')
+    return this.cards.filter(card => card.card_sets?.find(set => set.set_code === set_code))
+  }
+
+  /** Get a list of cards with the same `set_name` */
+  getBySetName(set_name: string) {
+    if (!this.cards) throw new Error('No cards loaded. Call .load() to fetch them')
+    return this.cards.filter(card => card.card_sets?.find(set => set.set_name === set_name))
+  }
+
+  /** Get a list of cards with the same `linkmarkers` */
+  getByLinkMarkers(linkmarkers: LinkMarker[]) {
+    if (!this.cards) throw new Error('No cards loaded. Call .load() to fetch them')
+    return this.cards.filter(card => card.linkmarkers?.find(link => linkmarkers.includes(link)))
+  }
+
+  /** 
+   * Search for cards that match the search query.
+   * Searches by name & description, ranking name higher than description.
+   * Limits the results to `limit` (default: 10).
    */
-  async getRandomCard() {
-    const res = await axios.get(this.randomCardUrl)
-
-    return res.data
-  }
-
-  /**
-   * Get a list of all archetypes
-   */
-  async getArchetypes() {
-    const res = await axios.get(this.archetypesUrl)
-
-    return res.data
-  }
-
-  /**
-   * Get a list of all cardsets
-  */
-  async getSets() {
-    const res = await axios.get(this.setUrl)
-
-    return res.data
-  }
-
-  /**
-   * Get the info of a cardset
-   */
-  async getSetInfo(setcode: string) {
-    const res = await axios.get(this.setInfoUrl, {
-      params: {
-        setcode,
-      }
-    })
-
-    return res.data
+  search(query: string, limit = 10) {
+    if (!this.cards || !this.fuse) throw new Error('No cards loaded. Call .load() to fetch them')
+    return this.fuse.search(query, { limit }).map(result => result.item)
   }
 }
