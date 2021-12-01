@@ -1,10 +1,8 @@
 import axios from 'axios'
-import Fuse from 'fuse.js'
 import { Card, CardType, CardRace, Attribute, Response, LinkMarker } from './types'
 
 export default class YGOClient {
   cards?: Card[]
-  fuse?: Fuse<Card>
 
   /**
    * Load the cards from the YGOProDeck API.
@@ -16,15 +14,6 @@ export default class YGOClient {
       const response = await axios.get('https://db.ygoprodeck.com/api/v7/cardinfo.php')
       this.cards = (response.data as Response).data
     }
-    this.fuse = new Fuse(this.cards, {
-      keys: [{
-        name: 'name',
-        weight: 0.7,
-      }, {
-        name: 'desc',
-        weight: 0.3,
-      }]
-    })
   }
 
   /** Get a list of cards that match the value to the property */
@@ -80,7 +69,18 @@ export default class YGOClient {
    * Limits the results to `limit` (default: 10).
    */
   search(query: string, limit = 10) {
-    if (!this.cards || !this.fuse) throw new Error('No cards loaded. Call .load() to fetch them')
-    return this.fuse.search(query, { limit }).map(result => result.item)
+    const matches: Card[] = [];
+    query = query.toLowerCase().replaceAll('-', ' ');
+
+    for (const card of this.cards!) {
+      let name = card.name.toLowerCase().replaceAll('-', ' ');
+      // exact match
+      if (name == query) return [card];
+      if (name.includes(query)) {
+        matches.push(card);
+      }
+    }
+
+    return matches
   }
 }
